@@ -1,6 +1,8 @@
 <?php
 namespace gift;
-require_once(__DIR__ . '/loader.php');
+if (!class_exists('\\' . __NAMESPACE__ . '\\Loader', false)) {
+    require_once(realpath(__DIR__) . '/loader.php');
+}
 
 $groups = 0; // members of a group can not buy a gift for another member of the group
 $list =  array(); // todo: allow for this list to be uploaded
@@ -36,7 +38,7 @@ while ($tries < 25) {
         if (count($l) == 1) {
             // the last element needs to have a different group than both the head and the tail
             /* @var Giver $last */
-            $last = $l[0];
+            $last = array_pop($l);
             /* @var Giver $head */
             $head = $start->getHead();
             /* @var Giver $tail */
@@ -56,7 +58,13 @@ while ($tries < 25) {
                 printf($next->getName() . ' -> ');
             }
             printf('%s %s', $last->getName(), PHP_EOL);
-            continue 2;
+            $tail->setGiveTo($last);
+            $last->setGetFrom($tail);
+            $last->setGiveTo($head);
+            $head->setGetFrom($last);
+            $head->setStartHere();
+            $success = true;
+            break 2;
         }
         $i = rand(0, count($l) - 1);
         /* @var Giver $pick */
@@ -90,4 +98,39 @@ while ($tries < 25) {
             }
         }
     }
+}
+if ($success) {
+    // loop over circular list
+    $node = $head; // todo: probably shouldn't rely on the $head variable above
+    $text = '';
+    do {
+        printf('%s gets an email to give a gift to %s%s', $node->getName(), $node->getGiveTo()->getName(), PHP_EOL);
+        $text .= sprintf('%s gets an email to give a gift to %s%s', $node->getName(), $node->getGiveTo()->getName(), "\r\n");
+        $node = $node->getGiveTo();
+    } while (!$node->isStartHere());
+    $ses = \Aws\Ses\SesClient::factory(array(
+        'key'    => \util\Settings::get('aws/key'),
+        'secret' => \util\Settings::get('aws/secret'),
+        'region' => \util\Settings::get('aws/sesregion'),
+    ));
+    $ses->sendEmail(array(
+        'Source' => \util\Settings::get('email/from'),
+        'Destination' => array(
+            'ToAddresses' => array(
+                'paulhulett@gmail.com'
+            ),
+        ),
+        'Message' => array(
+            'Subject' => array(
+                'Data' => \util\Settings::get('email/subject'),
+            ),
+            'Body' => array(
+                'Text' => array(
+                    'Data' => $text,
+                ),
+            ),
+        ),
+    ));
+} else {
+    printf('Could not find any successful lists after 24 tries%s', PHP_EOL);
 }

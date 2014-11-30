@@ -1,5 +1,10 @@
 <?php
 namespace gift;
+// global loader
+if (!class_exists('\\Loader',false)) {
+    require_once(realpath(__DIR__) . '/../loader.php');
+}
+// namespace loader
 final class Loader {
     // all files are expected to have a namespace that matches their containing directory
     // or be in the root directory (one above this one)
@@ -13,4 +18,4 @@ final class Loader {
         }
     }
 }
-spl_autoload_register('\gift\Loader::loadWithNameSpace');
+spl_autoload_register('\\' . __NAMESPACE__ .'\\Loader::loadWithNameSpace');

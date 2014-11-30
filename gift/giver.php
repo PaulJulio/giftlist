@@ -1,5 +1,9 @@
 <?php
 namespace gift;
+// pretty sure this is a Mac-only issue
+if (!class_exists('\\' . __NAMESPACE__ . '\\Loader', false)) {
+    require_once(__DIR__ . '/loader.php');
+}
 
 class Giver {
     /* @var string $name */
@@ -12,6 +16,8 @@ class Giver {
     private $giveTo;
     /* @var Giver $getFrom */
     private $getFrom;
+    /* @var boolean $startHere */
+    private $startHere = false;
 
     /**
      * @return string
@@ -119,7 +125,7 @@ class Giver {
      */
     public function getTail(Giver $firstCalled = null) {
         if (isset($firstCalled)) {
-            if ($firstCalled == $this) {
+            if ($firstCalled === $this) {
                 return true;
             }
         } else {
@@ -131,4 +137,36 @@ class Giver {
         return $this;
     }
 
+    /**
+     * @return boolean
+     */
+    public function isStartHere() {
+        return $this->startHere;
+    }
+
+    /**
+     * @param boolean $startHere
+     */
+    public function setStartHere($startHere = true) {
+        $this->startHere = $startHere;
+    }
+
+    /**
+     * @return $this
+     *
+     * A successful list is circular, and so it needs a starting/ending point for searches.
+     * If the list isn't circular,  we start with the head
+     */
+    public function getStartingGiver($circularCheck = false) {
+        if (!$circularCheck) {
+            $isCircular = $this->getGiveTo();
+            if ($isCircular !== true) {
+                return $this->getHead();
+            }
+        }
+        if ($this->isStartHere()) {
+            return $this;
+        }
+        return $this->getGiveTo()->getStartingGiver(true);
+    }
 }
